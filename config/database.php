@@ -1,11 +1,13 @@
 <?php
 $host = "localhost";
-$usuario = "u797525844_comseproa_db"; // Cambia si usas otro usuario
+$usuario = "u797525844_comseproa_db_anterior"; // Cambia si usas otro usuario
 $contraseña = "Dh0OzyUE*6c+";  // Cambia si tu MySQL tiene contraseña
-$base_datos = "u797525844_comseproa_db";
+$base_datos = "comseproa_db_anterior";
 
 // Conectar a la base de datos
 $conn = new mysqli($host, $usuario, $contraseña, $base_datos);
+
+
 
 // Verificar conexión
 if ($conn->connect_error) {
