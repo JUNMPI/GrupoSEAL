@@ -12,6 +12,22 @@ require_once "../config/database.php";
 $user_name = $_SESSION["user_name"] ?? "Usuario";
 $usuario_rol = $_SESSION["user_role"] ?? "usuario";
 $usuario_almacen_id = $_SESSION["almacen_id"] ?? null;
+// Contar solicitudes pendientes para el badge
+$sql_pendientes = "SELECT COUNT(*) as total FROM solicitudes_transferencia WHERE estado = 'pendiente'";
+if ($usuario_rol != 'admin') {
+    $sql_pendientes .= " AND almacen_destino = ?";
+    $stmt_pendientes = $conn->prepare($sql_pendientes);
+    $stmt_pendientes->bind_param("i", $usuario_almacen_id);
+    $stmt_pendientes->execute();
+    $result_pendientes = $stmt_pendientes->get_result();
+} else {
+    $result_pendientes = $conn->query($sql_pendientes);
+}
+
+$total_pendientes = 0;
+if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
+    $total_pendientes = $row_pendientes['total'];
+}
 
 // Consultar almacenes registrados
 if ($usuario_rol == 'admin') {
@@ -51,8 +67,8 @@ if ($usuario_rol == 'admin') {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
     <!-- CSS específico para listar almacenes -->
-    <link rel="stylesheet" href="../assets/css/listar-usuarios.css">
-    <link rel="stylesheet" href="../assets/css/almacenes-listar.css">
+    <link rel="stylesheet" href="../assets/css/usuarios/listar-usuarios.css">
+    <link rel="stylesheet" href="../assets/css/almacen/almacenes-listar.css">
 </head>
 <body>
 
@@ -248,9 +264,9 @@ if ($usuario_rol == 'admin') {
                     </div>
                     
                     <div class="card-footer">
-                        <a href="ver-almacen.php?id=<?php echo htmlspecialchars($row['id']); ?>" class="btn-ver">
+                        <button onclick="verAlmacen(<?php echo $row['id']; ?>)" class="btn-ver">
                             <i class="fas fa-eye"></i> Ver Detalle
-                        </a>
+                        </button>
                     </div>
                 </div>
             <?php endwhile; ?>
@@ -384,6 +400,56 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+// FUNCIÓN MODIFICADA PARA MAYOR SEGURIDAD - VER ALMACÉN
+function verAlmacen(almacenId) {
+    const almacenCard = document.querySelector(`[data-almacen-id="${almacenId}"]`);
+    almacenCard.style.background = 'rgba(23, 162, 184, 0.1)';
+    almacenCard.style.transform = 'scale(1.02)';
+    
+    // Crear formulario oculto para enviar por POST
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'ver_redirect.php';
+    form.style.display = 'none';
+    
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'view_almacen_id';
+    input.value = almacenId;
+    
+    form.appendChild(input);
+    document.body.appendChild(form);
+    
+    setTimeout(() => {
+        form.submit();
+    }, 200);
+}
+
+// FUNCIÓN MODIFICADA PARA MAYOR SEGURIDAD - EDITAR ALMACÉN
+function editarAlmacen(almacenId) {
+    const almacenCard = document.querySelector(`[data-almacen-id="${almacenId}"]`);
+    almacenCard.style.background = 'rgba(255, 193, 7, 0.1)';
+    almacenCard.style.transform = 'scale(1.02)';
+    
+    // Crear formulario oculto para enviar por POST
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'editar_redirect.php';
+    form.style.display = 'none';
+    
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'edit_almacen_id';
+    input.value = almacenId;
+    
+    form.appendChild(input);
+    document.body.appendChild(form);
+    
+    setTimeout(() => {
+        form.submit();
+    }, 200);
+}
+
 // Función para cerrar sesión con confirmación
 async function manejarCerrarSesion(event) {
     event.preventDefault();
@@ -439,11 +505,6 @@ async function eliminarAlmacen(id, nombre) {
             mostrarNotificacion('Error de conexión al eliminar el almacén', 'error');
         });
     }
-}
-
-// Función para editar almacén
-function editarAlmacen(id) {
-    window.location.href = `editar.php?id=${id}`;
 }
 
 // Animación de entrada para las tarjetas
