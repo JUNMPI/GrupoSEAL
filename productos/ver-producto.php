@@ -16,7 +16,7 @@ $user_name = isset($_SESSION["user_name"]) ? $_SESSION["user_name"] : "Usuario";
 $usuario_rol = isset($_SESSION["user_role"]) ? $_SESSION["user_role"] : "usuario";
 $usuario_almacen_id = isset($_SESSION["almacen_id"]) ? $_SESSION["almacen_id"] : null;
 
-// Validar el ID del producto
+// ⭐ MANTENER LA LÓGICA ORIGINAL - Validar el ID del producto
 if (!isset($_GET['id']) || !filter_var($_GET['id'], FILTER_VALIDATE_INT)) {
     $_SESSION['error'] = "ID de producto no válido";
     header("Location: listar.php");
@@ -25,7 +25,7 @@ if (!isset($_GET['id']) || !filter_var($_GET['id'], FILTER_VALIDATE_INT)) {
 
 $producto_id = $_GET['id'];
 
-// ⭐ OBTENER Y PROCESAR PARÁMETROS DE CONTEXTO
+// ⭐ MANTENER LA LÓGICA ORIGINAL - OBTENER Y PROCESAR PARÁMETROS DE CONTEXTO
 $context_params = isset($_GET['from']) ? $_GET['from'] : '';
 parse_str($context_params, $context_array);
 
@@ -71,6 +71,16 @@ function getContextDescription($context_array, $producto) {
     return 'Lista de Productos';
 }
 
+// Función para determinar si el retorno debe ser al almacén
+function shouldReturnToWarehouse($context_array, $current_product) {
+    // Si no hay contexto específico de lista, volver al almacén
+    if (empty($context_array) || 
+        (!isset($context_array['categoria_id']) && !isset($context_array['busqueda']) && !isset($context_array['pagina']))) {
+        return true;
+    }
+    return false;
+}
+
 // Obtener información completa del producto
 $sql = "SELECT p.*, c.nombre as categoria_nombre, a.nombre as almacen_nombre 
         FROM productos p 
@@ -93,6 +103,10 @@ if (!$producto) {
 // ⭐ CONSTRUIR URLs DE NAVEGACIÓN CON CONTEXTO
 $return_url = buildReturnUrl($context_array, $producto);
 $return_text = getContextDescription($context_array, $producto);
+$should_return_to_warehouse = shouldReturnToWarehouse($context_array, $producto);
+
+// URL para retorno al almacén
+$warehouse_return_url = "../almacenes/ver_redirect.php?id=" . $producto['almacen_id'];
 
 // Verificar permisos de acceso (si no es admin, solo puede ver productos de su almacén)
 if ($usuario_rol != 'admin' && $usuario_almacen_id != $producto['almacen_id']) {
@@ -178,10 +192,10 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ver Producto - <?php echo htmlspecialchars($producto['nombre']); ?> - COMSEPROA</title>
+    <title>Ver Producto - <?php echo htmlspecialchars($producto['nombre']); ?> - GRUPO SEAL</title>
     
     <!-- Meta tags adicionales -->
-    <meta name="description" content="Detalle del producto <?php echo htmlspecialchars($producto['nombre']); ?> - Sistema COMSEPROA">
+    <meta name="description" content="Detalle del producto <?php echo htmlspecialchars($producto['nombre']); ?> - Sistema GRUPO SEAL">
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#0a253c">
     
@@ -193,11 +207,13 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
-    <!-- CSS específico para ver producto - USAR ESTE EN LUGAR DEL ORIGINAL -->
+    <!-- CSS específico para ver producto -->
     <link rel="stylesheet" href="../assets/css/listar-usuarios.css">
-    <link rel="stylesheet" href="../assets/css/productos-ver.css">
+    <link rel="stylesheet" href="../assets/css/productos/productos-ver.css">
 </head>
-<body data-producto-id="<?php echo $producto_id; ?>" class="productos-ver-page">
+<body data-producto-id="<?php echo $producto_id; ?>" 
+      data-almacen-id="<?php echo $producto['almacen_id']; ?>"
+      class="productos-ver-page">
 
 <!-- Botón de hamburguesa para dispositivos móviles -->
 <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú de navegación">
@@ -356,7 +372,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             
             <div class="header-actions">
                 <?php if ($usuario_rol == 'admin'): ?>
-                <!-- ⭐ BOTÓN EDITAR CON CONTEXTO -->
+                <!-- ⭐ BOTÓN EDITAR CON LÓGICA ORIGINAL -->
                 <button class="btn-action btn-edit" onclick="editarProductoConContexto(<?php echo $producto_id; ?>)" title="Editar producto">
                     <i class="fas fa-edit"></i>
                     <span>Editar</span>
@@ -380,20 +396,19 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                 </button>
                 <?php endif; ?>
                 
-                <!-- ⭐ BOTÓN VOLVER CON CONTEXTO -->
-                <a href="<?php echo $return_url; ?>" class="btn-action btn-back">
+                <!-- ⭐ BOTÓN VOLVER INTELIGENTE -->
+                <button class="btn-action btn-back" onclick="navegarRetorno()" title="Volver">
                     <i class="fas fa-arrow-left"></i>
-                    <span>Volver</span>
-                </a>
+                    <span id="textoRetorno">Volver</span>
+                </button>
             </div>
         </div>
         
-        <!-- ⭐ BREADCRUMB CON CONTEXTO -->
-        <nav class="breadcrumb" aria-label="Ruta de navegación">
+        <!-- ⭐ BREADCRUMB DINÁMICO -->
+        <nav class="breadcrumb" aria-label="Ruta de navegación" id="breadcrumbContainer">
             <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
             <span><i class="fas fa-chevron-right"></i></span>
-            <a href="<?php echo $return_url; ?>"><?php echo $return_text; ?></a>
-            <span><i class="fas fa-chevron-right"></i></span>
+            <!-- Se completará dinámicamente -->
             <span class="current"><?php echo htmlspecialchars($producto['nombre']); ?></span>
         </nav>
     </header>
@@ -487,7 +502,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                         <div class="detail-group">
                             <label>Almacén</label>
                             <value>
-                                <a href="../almacenes/ver-almacen.php?id=<?php echo $producto['almacen_id']; ?>" class="link-almacen">
+                                <a href="javascript:void(0)" onclick="navegarAlAlmacen()" class="link-almacen">
                                     <i class="fas fa-warehouse"></i>
                                     <?php echo htmlspecialchars($producto['almacen_nombre']); ?>
                                 </a>
@@ -666,7 +681,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             <span>Ver Categoría Completa</span>
                         </a>
                         
-                        <a href="../almacenes/ver-almacen.php?id=<?php echo $producto['almacen_id']; ?>" class="quick-action">
+                        <a href="javascript:void(0)" onclick="navegarAlAlmacen()" class="quick-action">
                             <i class="fas fa-warehouse"></i>
                             <span>Ver Almacén Completo</span>
                         </a>
@@ -779,13 +794,95 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <!-- Container for dynamic notifications -->
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
-<!-- ⭐ JAVASCRIPT CON FUNCIONES DE CONTEXTO -->
 <script>
 // Variables para el contexto
 const CONTEXT_PARAMS = '<?php echo urlencode($context_params); ?>';
 const PRODUCT_ID = <?php echo $producto_id; ?>;
+const ALMACEN_ID = <?php echo $producto['almacen_id']; ?>;
+const RETURN_URL = '<?php echo $return_url; ?>';
+const RETURN_TEXT = '<?php echo addslashes($return_text); ?>';
+const SHOULD_RETURN_TO_WAREHOUSE = <?php echo $should_return_to_warehouse ? 'true' : 'false'; ?>;
+const WAREHOUSE_RETURN_URL = '<?php echo $warehouse_return_url; ?>';
 
-// ⭐ FUNCIÓN PARA EDITAR CON CONTEXTO
+// Función para configurar la interfaz según el contexto
+function configurarInterfazContexto() {
+    const textoRetorno = document.getElementById('textoRetorno');
+    const breadcrumbContainer = document.getElementById('breadcrumbContainer');
+    
+    if (SHOULD_RETURN_TO_WAREHOUSE) {
+        // Configurar para retorno al almacén
+        textoRetorno.textContent = 'Volver al Almacén';
+        
+        breadcrumbContainer.innerHTML = `
+            <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="../almacenes/listar.php">Almacenes</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="javascript:void(0)" onclick="navegarAlAlmacen()">Almacén</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <span class="current"><?php echo htmlspecialchars($producto['nombre']); ?></span>
+        `;
+    } else {
+        // Configurar para retorno a lista de productos
+        if (RETURN_TEXT.includes('Categoría:')) {
+            textoRetorno.textContent = 'Volver a Categoría';
+        } else if (RETURN_TEXT.includes('Almacén:')) {
+            textoRetorno.textContent = 'Volver al Almacén';
+        } else {
+            textoRetorno.textContent = 'Volver a Lista';
+        }
+        
+        breadcrumbContainer.innerHTML = `
+            <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="javascript:void(0)" onclick="navegarRetorno()">${RETURN_TEXT}</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <span class="current"><?php echo htmlspecialchars($producto['nombre']); ?></span>
+        `;
+    }
+}
+
+// Función para navegar de retorno
+function navegarRetorno() {
+    if (SHOULD_RETURN_TO_WAREHOUSE) {
+        navegarAlAlmacen();
+    } else {
+        // Verificar si hay contexto de productos guardado
+        const productosContext = sessionStorage.getItem('productos_context');
+        
+        if (productosContext) {
+            const context = JSON.parse(productosContext);
+            if (context.filtro_almacen_id === ALMACEN_ID) {
+                // El contexto coincide, usar la URL de retorno
+                window.location.href = RETURN_URL;
+                return;
+            }
+        }
+        
+        // Usar URL de retorno por defecto
+        window.location.href = RETURN_URL;
+    }
+}
+
+// Función para navegar al almacén
+function navegarAlAlmacen() {
+    // Crear formulario para navegar de forma segura al almacén
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '../almacenes/ver_redirect.php';
+    form.style.display = 'none';
+    
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'view_almacen_id';
+    input.value = ALMACEN_ID;
+    
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// ⭐ LÓGICA ORIGINAL MANTENIDA - Función para editar con contexto
 function editarProductoConContexto(productoId) {
     const baseUrl = 'editar.php?id=' + productoId;
     const fullUrl = CONTEXT_PARAMS ? baseUrl + '&from=' + CONTEXT_PARAMS : baseUrl;
@@ -823,10 +920,6 @@ function adjustQuantity(increment) {
     }
 }
 
-function editarProducto(id) {
-    editarProductoConContexto(id);
-}
-
 async function eliminarProducto(id, nombre) {
     if (window.productosVer) {
         // Usar el sistema de confirmación del objeto
@@ -858,7 +951,7 @@ async function eliminarProducto(id, nombre) {
                     window.productosVer.mostrarNotificacion('Producto eliminado correctamente', 'exito');
                     
                     setTimeout(() => {
-                        window.location.href = '<?php echo $return_url; ?>';
+                        navegarRetorno();
                     }, 2000);
                 } else {
                     window.productosVer.mostrarNotificacion(data.message || 'Error al eliminar el producto', 'error');
@@ -886,6 +979,17 @@ function manejarCerrarSesion(event) {
         }
     }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Configurar la interfaz según el contexto
+    configurarInterfazContexto();
+    
+    // Manejar navegación del navegador (botón atrás)
+    window.addEventListener('popstate', function(event) {
+        // Navegar según el contexto
+        navegarRetorno();
+    });
+});
 </script>
 
 <!-- JavaScript principal -->

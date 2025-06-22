@@ -208,6 +208,11 @@ $almacenes_disponibles = [];
 while ($almacen = $result_almacenes->fetch_assoc()) {
     $almacenes_disponibles[] = $almacen;
 }
+
+// Función para determinar la URL de retorno al almacén
+function obtenerUrlRetornoAlmacen($almacen_id) {
+    return "../almacenes/ver_redirect.php?id=" . $almacen_id;
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -239,7 +244,7 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
     <!-- CSS específico y limpio -->
-    <link rel="stylesheet" href="../assets/css/productos-tabla.css">
+    <link rel="stylesheet" href="../assets/css/productos/productos-tabla.css">
     
     <!-- Prefetch de páginas -->
     <?php if ($pagina_actual < $total_paginas): ?>
@@ -251,6 +256,7 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
 </head>
 <body data-user-role="<?php echo htmlspecialchars($usuario_rol); ?>" 
       data-almacen-id="<?php echo $filtro_almacen_id ?: $usuario_almacen_id; ?>"
+      data-categoria-id="<?php echo $filtro_categoria_id; ?>"
       data-user-id="<?php echo htmlspecialchars($_SESSION['user_id']); ?>"
       data-page="<?php echo $pagina_actual; ?>"
       data-total-pages="<?php echo $total_paginas; ?>"
@@ -267,7 +273,7 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
     <i class="fas fa-bars"></i>
 </button>
 
-<!-- Sidebar Navigation -->
+<!-- ===== SIDEBAR Y NAVEGACIÓN UNIFICADO ===== -->
 <nav class="sidebar" id="sidebar" role="navigation" aria-label="Menú principal">
     <h2>GRUPO SEAL</h2>
     <ul>
@@ -314,7 +320,6 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
             <ul class="submenu" role="menu">
                 <li><a href="../entregas/historial.php"role="menuitem"><i class="fas fa-hand-holding"></i> Historial de Entregas</a></li>
                 <li><a href="../notificaciones/historial.php" role="menuitem"><i class="fas fa-exchange-alt"></i> Historial de Solicitudes</a></li>
-                
             </ul>
         </li>
         
@@ -360,7 +365,6 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
                 <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
-                
                 <li><a href="../perfil/cambiar-password.php" role="menuitem"><i class="fas fa-key"></i> Cambiar Contraseña</a></li>
             </ul>
         </li>
@@ -438,17 +442,25 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
                 </a>
                 <?php endif; ?>
                 
-                <?php if ($filtro_almacen_id): ?>
-                <a href="../almacenes/ver-almacen.php?id=<?php echo $filtro_almacen_id; ?>" class="btn-header btn-secondary">
+                <!-- Botón inteligente de retorno -->
+                <?php if ($filtro_almacen_id && $filtro_categoria_id): ?>
+                <!-- Estamos en una categoría específica de un almacén -->
+                <a href="<?php echo obtenerUrlRetornoAlmacen($filtro_almacen_id); ?>" class="btn-header btn-secondary">
                     <i class="fas fa-arrow-left"></i>
-                    <span>Volver al Almacén</span>
+                    <span>Volver a Categorías</span>
+                </a>
+                <?php elseif ($filtro_almacen_id): ?>
+                <!-- Estamos en un almacén específico -->
+                <a href="<?php echo obtenerUrlRetornoAlmacen($filtro_almacen_id); ?>" class="btn-header btn-secondary">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Volver a Categorías</span>
                 </a>
                 <?php endif; ?>
             </div>
         </div>
     </header>
 
-    <!-- Breadcrumb -->
+    <!-- Breadcrumb mejorado -->
     <nav class="breadcrumb">
         <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
         <span><i class="fas fa-chevron-right"></i></span>
@@ -456,11 +468,17 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
         <?php if ($almacen_info): ?>
             <a href="../almacenes/listar.php">Almacenes</a>
             <span><i class="fas fa-chevron-right"></i></span>
-            <a href="../almacenes/ver-almacen.php?id=<?php echo $filtro_almacen_id; ?>"><?php echo htmlspecialchars($almacen_info['nombre']); ?></a>
+            <a href="<?php echo obtenerUrlRetornoAlmacen($filtro_almacen_id); ?>"><?php echo htmlspecialchars($almacen_info['nombre']); ?></a>
             <span><i class="fas fa-chevron-right"></i></span>
+            
+            <?php if ($filtro_categoria_id && $categoria_info): ?>
+                <span class="current"><?php echo htmlspecialchars($categoria_info['nombre']); ?></span>
+            <?php else: ?>
+                <span class="current">Productos</span>
+            <?php endif; ?>
+        <?php else: ?>
+            <span class="current">Productos</span>
         <?php endif; ?>
-        
-        <span class="current">Productos</span>
     </nav>
 
     <!-- Filtros y búsqueda -->
@@ -638,7 +656,7 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
                                 <!-- Acciones -->
                                 <td class="actions-cell">
                                     <div class="action-buttons">
-                                        <!-- ⭐ BOTÓN VER MODIFICADO CON CONTEXTO -->
+                                        <!-- ⭐ BOTÓN VER CON LÓGICA ORIGINAL -->
                                         <button class="btn-action btn-view" 
                                                 onclick="verProductoConContexto(<?php echo $producto['id']; ?>)"
                                                 title="Ver detalles">
@@ -664,7 +682,7 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
                                         <?php endif; ?>
 
                                         <?php if ($usuario_rol == 'admin'): ?>
-                                        <!-- ⭐ BOTÓN EDITAR MODIFICADO CON CONTEXTO -->
+                                        <!-- ⭐ BOTÓN EDITAR CON LÓGICA ORIGINAL -->
                                         <button class="btn-action btn-edit" 
                                                 onclick="editarProductoConContexto(<?php echo $producto['id']; ?>)"
                                                 title="Editar producto">
@@ -1067,25 +1085,41 @@ while ($almacen = $result_almacenes->fetch_assoc()) {
 <!-- Container para notificaciones -->
 <div id="notificaciones-container"></div>
 
-<!-- ⭐ JAVASCRIPT CON FUNCIONES DE CONTEXTO -->
+<!-- ⭐ JAVASCRIPT CON LÓGICA ORIGINAL + URLs LIMPIAS -->
 <script>
 // Variables globales para el contexto
 const CONTEXTO_PARAMS = document.body.dataset.context || '';
+const FILTRO_ALMACEN_ID = <?php echo $filtro_almacen_id ? $filtro_almacen_id : 'null'; ?>;
+const FILTRO_CATEGORIA_ID = <?php echo $filtro_categoria_id ? $filtro_categoria_id : 'null'; ?>;
 
-// ⭐ FUNCIONES MODIFICADAS PARA INCLUIR CONTEXTO
+// Guardar contexto en sessionStorage para navegación
+function guardarContextoProductos() {
+    const context = {
+        page: 'productos-listar',
+        filtro_almacen_id: FILTRO_ALMACEN_ID,
+        filtro_categoria_id: FILTRO_CATEGORIA_ID,
+        timestamp: Date.now()
+    };
+    
+    sessionStorage.setItem('productos_context', JSON.stringify(context));
+}
+
+// ⭐ FUNCIONES ORIGINALES CON URLs LIMPIAS
 function verProductoConContexto(id) {
+    guardarContextoProductos();
     const baseUrl = 'ver-producto.php?id=' + id;
     const fullUrl = CONTEXTO_PARAMS ? baseUrl + '&from=' + encodeURIComponent(CONTEXTO_PARAMS) : baseUrl;
     window.location.href = fullUrl;
 }
 
 function editarProductoConContexto(id) {
+    guardarContextoProductos();
     const baseUrl = 'editar.php?id=' + id;
     const fullUrl = CONTEXTO_PARAMS ? baseUrl + '&from=' + encodeURIComponent(CONTEXTO_PARAMS) : baseUrl;
     window.location.href = fullUrl;
 }
 
-// Funciones de compatibilidad (mantener las originales también)
+// Funciones de compatibilidad
 function verProducto(id) {
     verProductoConContexto(id);
 }
@@ -1093,6 +1127,47 @@ function verProducto(id) {
 function editarProducto(id) {
     editarProductoConContexto(id);
 }
+
+// Manejar navegación del navegador (botón atrás)
+window.addEventListener('popstate', function(event) {
+    // Si viene del almacén y tiene contexto guardado, redirigir correctamente
+    const almacenContext = sessionStorage.getItem('almacen_context');
+    
+    if (almacenContext && FILTRO_ALMACEN_ID) {
+        const context = JSON.parse(almacenContext);
+        if (context.almacen_id === FILTRO_ALMACEN_ID && context.page === 'ver-almacen') {
+            // Redirigir al almacén de forma segura
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '../almacenes/ver_redirect.php';
+            form.style.display = 'none';
+            
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'view_almacen_id';
+            input.value = context.almacen_id;
+            
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Guardar contexto inicial
+    guardarContextoProductos();
+    
+    // ⭐ LIMPIAR URL EN EL HISTORIAL (SIN AFECTAR FUNCIONALIDAD)
+    if (window.location.search && window.history.replaceState) {
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState(
+            { context: CONTEXTO_PARAMS }, 
+            document.title, 
+            cleanUrl
+        );
+    }
+});
 </script>
 
 <!-- JavaScript principal -->
