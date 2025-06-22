@@ -27,6 +27,22 @@ require_once "../config/database.php";
 $almacen_preseleccionado = isset($_GET['almacen_id']) ? (int)$_GET['almacen_id'] : null;
 $categoria_preseleccionada = isset($_GET['categoria_id']) ? (int)$_GET['categoria_id'] : null;
 
+// Determinar la URL de retorno basada en el contexto
+function determinarUrlRetorno($almacen_id, $categoria_id) {
+    if ($almacen_id && $categoria_id) {
+        // Si viene de una categoría específica del almacén
+        return "../productos/listar.php?almacen_id={$almacen_id}&categoria_id={$categoria_id}";
+    } elseif ($almacen_id) {
+        // Si viene del almacén general
+        return "../almacenes/ver-almacen.php?id={$almacen_id}";
+    } else {
+        // Lista general de productos
+        return "listar.php";
+    }
+}
+
+$url_retorno = determinarUrlRetorno($almacen_preseleccionado, $categoria_preseleccionada);
+
 $mensaje = "";
 $error = "";
 
@@ -97,14 +113,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     
                     $_SESSION['success'] = "✅ Producto registrado con éxito.";
                     
-                    // Redirigir según el contexto
-                    if ($almacen_preseleccionado && $categoria_preseleccionada) {
-                        header("Location: listar.php?almacen_id={$almacen_preseleccionado}&categoria_id={$categoria_preseleccionada}");
-                    } elseif ($almacen_preseleccionado) {
-                        header("Location: ../almacenes/ver-almacen.php?id={$almacen_preseleccionado}");
-                    } else {
-                        header("Location: listar.php");
-                    }
+                    // Redirigir según el contexto original
+                    $redirect_url = determinarUrlRetorno($almacen_id, $categoria_id);
+                    header("Location: " . $redirect_url);
                     exit();
                 } else {
                     $error = "❌ Error al registrar el producto: " . $stmt->error;
@@ -131,10 +142,10 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registrar Producto - COMSEPROA</title>
+    <title>Registrar Producto - GRUPO SEAL</title>
     
     <!-- Meta tags adicionales -->
-    <meta name="description" content="Registrar nuevo producto en el sistema COMSEPROA">
+    <meta name="description" content="Registrar nuevo producto en el sistema GRUPO SEAL">
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#0a253c">
     
@@ -147,16 +158,16 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
     <!-- CSS específico para registrar productos -->
-    <link rel="stylesheet" href="../assets/css/productos-registrar.css">
+    <link rel="stylesheet" href="../assets/css/productos/productos-registrar.css">
 </head>
-<body>
+<body data-almacen-id="<?php echo $almacen_preseleccionado; ?>" data-categoria-id="<?php echo $categoria_preseleccionada; ?>">
 
 <!-- Botón de hamburguesa para dispositivos móviles -->
 <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú de navegación">
     <i class="fas fa-bars"></i>
 </button>
 
-<!-- Sidebar Navigation -->
+<!-- ===== SIDEBAR Y NAVEGACIÓN UNIFICADO ===== -->
 <nav class="sidebar" id="sidebar" role="navigation" aria-label="Menú principal">
     <h2>GRUPO SEAL</h2>
     <ul>
@@ -203,7 +214,6 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
             <ul class="submenu" role="menu">
                 <li><a href="../entregas/historial.php"role="menuitem"><i class="fas fa-hand-holding"></i> Historial de Entregas</a></li>
                 <li><a href="../notificaciones/historial.php" role="menuitem"><i class="fas fa-exchange-alt"></i> Historial de Solicitudes</a></li>
-                
             </ul>
         </li>
         
@@ -249,7 +259,6 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                 <i class="fas fa-chevron-down"></i>
             </a>
             <ul class="submenu" role="menu">
-                
                 <li><a href="../perfil/cambiar-password.php" role="menuitem"><i class="fas fa-key"></i> Cambiar Contraseña</a></li>
             </ul>
         </li>
@@ -297,31 +306,20 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                     <span>Ver Productos</span>
                 </a>
                 
-                <?php if ($almacen_preseleccionado): ?>
-                <a href="../almacenes/ver-almacen.php?id=<?php echo $almacen_preseleccionado; ?>" class="btn-header btn-secondary">
+                <!-- Botón dinámico de retorno -->
+                <a href="javascript:void(0)" onclick="navegarRetorno()" class="btn-header btn-secondary" id="btnRetorno">
                     <i class="fas fa-arrow-left"></i>
-                    <span>Volver al Almacén</span>
+                    <span id="textoRetorno">Volver</span>
                 </a>
-                <?php endif; ?>
             </div>
         </div>
     </header>
 
-    <!-- Breadcrumb -->
-    <nav class="breadcrumb" aria-label="Ruta de navegación">
+    <!-- Breadcrumb dinámico -->
+    <nav class="breadcrumb" aria-label="Ruta de navegación" id="breadcrumbContainer">
         <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
         <span><i class="fas fa-chevron-right"></i></span>
-        
-        <?php if ($almacen_preseleccionado): ?>
-            <a href="../almacenes/listar.php">Almacenes</a>
-            <span><i class="fas fa-chevron-right"></i></span>
-            <a href="../almacenes/ver-almacen.php?id=<?php echo $almacen_preseleccionado; ?>">Almacén</a>
-            <span><i class="fas fa-chevron-right"></i></span>
-        <?php else: ?>
-            <a href="listar.php">Productos</a>
-            <span><i class="fas fa-chevron-right"></i></span>
-        <?php endif; ?>
-        
+        <!-- Se completará dinámicamente -->
         <span class="current">Registrar Producto</span>
     </nav>
 
@@ -356,7 +354,6 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             required
                             autocomplete="off"
                             maxlength="100"
-                            value="<?php echo isset($_POST['nombre']) ? htmlspecialchars($_POST['nombre']) : ''; ?>"
                         >
                         <div class="field-hint">
                             <i class="fas fa-info-circle"></i>
@@ -376,7 +373,6 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             placeholder="Ej: XL-500, Pro-2024..."
                             autocomplete="off"
                             maxlength="50"
-                            value="<?php echo isset($_POST['modelo']) ? htmlspecialchars($_POST['modelo']) : ''; ?>"
                         >
                     </div>
 
@@ -392,7 +388,6 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             placeholder="Ej: Negro, Azul marino, Verde..."
                             autocomplete="off"
                             maxlength="30"
-                            value="<?php echo isset($_POST['color']) ? htmlspecialchars($_POST['color']) : ''; ?>"
                         >
                     </div>
 
@@ -408,7 +403,6 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             placeholder="Ej: XL, 42, 30x25x10 cm..."
                             autocomplete="off"
                             maxlength="50"
-                            value="<?php echo isset($_POST['talla_dimensiones']) ? htmlspecialchars($_POST['talla_dimensiones']) : ''; ?>"
                         >
                     </div>
 
@@ -426,7 +420,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             <option value="">Seleccione un almacén</option>
                             <?php while ($almacen = $result_almacenes->fetch_assoc()): ?>
                                 <option value="<?php echo $almacen['id']; ?>" 
-                                    <?php echo ($almacen_preseleccionado == $almacen['id'] || (isset($_POST['almacen_id']) && $_POST['almacen_id'] == $almacen['id'])) ? 'selected' : ''; ?>>
+                                    <?php echo ($almacen_preseleccionado == $almacen['id']) ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($almacen['nombre']); ?>
                                 </option>
                             <?php endwhile; ?>
@@ -446,7 +440,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             <option value="">Seleccione una categoría</option>
                             <?php while ($categoria = $result_categorias->fetch_assoc()): ?>
                                 <option value="<?php echo $categoria['id']; ?>" 
-                                    <?php echo ($categoria_preseleccionada == $categoria['id'] || (isset($_POST['categoria_id']) && $_POST['categoria_id'] == $categoria['id'])) ? 'selected' : ''; ?>>
+                                    <?php echo ($categoria_preseleccionada == $categoria['id']) ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($categoria['nombre']); ?>
                                 </option>
                             <?php endwhile; ?>
@@ -476,7 +470,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                                 id="cantidad" 
                                 name="cantidad" 
                                 min="1" 
-                                value="<?php echo isset($_POST['cantidad']) ? (int)$_POST['cantidad'] : 1; ?>"
+                                value="1"
                                 required
                                 class="qty-input"
                             >
@@ -497,14 +491,14 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                         </label>
                         <select id="unidad_medida" name="unidad_medida" required class="form-select">
                             <option value="">Seleccione una unidad</option>
-                            <option value="Unidad" <?php echo (isset($_POST['unidad_medida']) && $_POST['unidad_medida'] == 'Unidad') ? 'selected' : ''; ?>>Unidad</option>
-                            <option value="Par" <?php echo (isset($_POST['unidad_medida']) && $_POST['unidad_medida'] == 'Par') ? 'selected' : ''; ?>>Par</option>
-                            <option value="Set" <?php echo (isset($_POST['unidad_medida']) && $_POST['unidad_medida'] == 'Set') ? 'selected' : ''; ?>>Set</option>
-                            <option value="Caja" <?php echo (isset($_POST['unidad_medida']) && $_POST['unidad_medida'] == 'Caja') ? 'selected' : ''; ?>>Caja</option>
-                            <option value="Paquete" <?php echo (isset($_POST['unidad_medida']) && $_POST['unidad_medida'] == 'Paquete') ? 'selected' : ''; ?>>Paquete</option>
-                            <option value="Kilogramo" <?php echo (isset($_POST['unidad_medida']) && $_POST['unidad_medida'] == 'Kilogramo') ? 'selected' : ''; ?>>Kilogramo</option>
-                            <option value="Metro" <?php echo (isset($_POST['unidad_medida']) && $_POST['unidad_medida'] == 'Metro') ? 'selected' : ''; ?>>Metro</option>
-                            <option value="Litro" <?php echo (isset($_POST['unidad_medida']) && $_POST['unidad_medida'] == 'Litro') ? 'selected' : ''; ?>>Litro</option>
+                            <option value="Unidad">Unidad</option>
+                            <option value="Par">Par</option>
+                            <option value="Set">Set</option>
+                            <option value="Caja">Caja</option>
+                            <option value="Paquete">Paquete</option>
+                            <option value="Kilogramo">Kilogramo</option>
+                            <option value="Metro">Metro</option>
+                            <option value="Litro">Litro</option>
                         </select>
                     </div>
 
@@ -515,10 +509,10 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                         </label>
                         <select id="estado" name="estado" required class="form-select">
                             <option value="">Seleccione el estado</option>
-                            <option value="Nuevo" <?php echo (isset($_POST['estado']) && $_POST['estado'] == 'Nuevo') ? 'selected' : ''; ?>>Nuevo</option>
-                            <option value="Usado" <?php echo (isset($_POST['estado']) && $_POST['estado'] == 'Usado') ? 'selected' : ''; ?>>Usado</option>
-                            <option value="Renovado" <?php echo (isset($_POST['estado']) && $_POST['estado'] == 'Renovado') ? 'selected' : ''; ?>>Renovado</option>
-                            <option value="Dañado" <?php echo (isset($_POST['estado']) && $_POST['estado'] == 'Dañado') ? 'selected' : ''; ?>>Dañado</option>
+                            <option value="Nuevo">Nuevo</option>
+                            <option value="Usado">Usado</option>
+                            <option value="Renovado">Renovado</option>
+                            <option value="Dañado">Dañado</option>
                         </select>
                     </div>
 
@@ -539,7 +533,7 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                             placeholder="Información adicional sobre el producto (características especiales, instrucciones, etc.)"
                             maxlength="500"
                             class="form-textarea"
-                        ><?php echo isset($_POST['observaciones']) ? htmlspecialchars($_POST['observaciones']) : ''; ?></textarea>
+                        ></textarea>
                         <div class="character-counter">
                             <span id="charCount">0</span>/500 caracteres
                         </div>
@@ -557,10 +551,10 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
                         Limpiar Formulario
                     </button>
                     
-                    <a href="listar.php" class="btn-cancel">
+                    <button type="button" onclick="navegarRetorno()" class="btn-cancel">
                         <i class="fas fa-times"></i>
                         Cancelar
-                    </a>
+                    </button>
                 </div>
             </form>
         </div>
@@ -612,7 +606,446 @@ if ($result_pendientes && $row_pendientes = $result_pendientes->fetch_assoc()) {
 <!-- Container for dynamic notifications -->
 <div id="notificaciones-container" role="alert" aria-live="polite"></div>
 
-<!-- JavaScript -->
-<script src="../assets/js/productos-registrar.js"></script>
+<script>
+// Variables para el contexto de navegación
+const ALMACEN_PRESELECCIONADO = <?php echo $almacen_preseleccionado ? $almacen_preseleccionado : 'null'; ?>;
+const CATEGORIA_PRESELECCIONADA = <?php echo $categoria_preseleccionada ? $categoria_preseleccionada : 'null'; ?>;
+const URL_RETORNO = '<?php echo $url_retorno; ?>';
+
+// Función para determinar el contexto y navegar correctamente
+function navegarRetorno() {
+    // Verificar si hay contexto de sessionStorage (para navegación desde almacén)
+    const almacenContext = sessionStorage.getItem('almacen_context');
+    
+    if (almacenContext) {
+        const context = JSON.parse(almacenContext);
+        // Si el almacén coincide con el preseleccionado, volver al almacén
+        if (context.almacen_id === ALMACEN_PRESELECCIONADO) {
+            // Crear formulario para navegar de forma segura al almacén
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '../almacenes/ver_redirect.php';
+            form.style.display = 'none';
+            
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'view_almacen_id';
+            input.value = context.almacen_id;
+            
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+            return;
+        }
+    }
+    
+    // Usar la URL de retorno determinada por PHP
+    window.location.href = URL_RETORNO;
+}
+
+// Función para configurar la interfaz basada en el contexto
+function configurarInterfazContexto() {
+    const btnRetorno = document.getElementById('btnRetorno');
+    const textoRetorno = document.getElementById('textoRetorno');
+    const breadcrumbContainer = document.getElementById('breadcrumbContainer');
+    
+    // Configurar texto y breadcrumb según el contexto
+    if (ALMACEN_PRESELECCIONADO && CATEGORIA_PRESELECCIONADA) {
+        textoRetorno.textContent = 'Volver a Categoría';
+        
+        // Breadcrumb para categoría específica
+        breadcrumbContainer.innerHTML = `
+            <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="../almacenes/listar.php">Almacenes</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="javascript:void(0)" onclick="navegarRetorno()">Almacén</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="javascript:void(0)" onclick="navegarRetorno()">Categoría</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <span class="current">Registrar Producto</span>
+        `;
+    } else if (ALMACEN_PRESELECCIONADO) {
+        textoRetorno.textContent = 'Volver al Almacén';
+        
+        // Breadcrumb para almacén
+        breadcrumbContainer.innerHTML = `
+            <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="../almacenes/listar.php">Almacenes</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="javascript:void(0)" onclick="navegarRetorno()">Almacén</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <span class="current">Registrar Producto</span>
+        `;
+    } else {
+        textoRetorno.textContent = 'Volver a Productos';
+        
+        // Breadcrumb general
+        breadcrumbContainer.innerHTML = `
+            <a href="../dashboard.php"><i class="fas fa-home"></i> Inicio</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <a href="listar.php">Productos</a>
+            <span><i class="fas fa-chevron-right"></i></span>
+            <span class="current">Registrar Producto</span>
+        `;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Configurar la interfaz según el contexto
+    configurarInterfazContexto();
+    
+    // ⭐ FUNCIONALIDAD EXISTENTE DEL FORMULARIO
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('main-content');
+    const submenuContainers = document.querySelectorAll('.submenu-container');
+    
+    // Toggle del menú móvil
+    if (menuToggle) {
+        menuToggle.addEventListener('click', function() {
+            sidebar.classList.toggle('active');
+            if (mainContent) {
+                mainContent.classList.toggle('with-sidebar');
+            }
+            
+            // Cambiar icono del botón
+            const icon = this.querySelector('i');
+            if (sidebar.classList.contains('active')) {
+                icon.classList.remove('fa-bars');
+                icon.classList.add('fa-times');
+                this.setAttribute('aria-label', 'Cerrar menú de navegación');
+            } else {
+                icon.classList.remove('fa-times');
+                icon.classList.add('fa-bars');
+                this.setAttribute('aria-label', 'Abrir menú de navegación');
+            }
+        });
+    }
+    
+    // Funcionalidad de submenús
+    submenuContainers.forEach(container => {
+        const link = container.querySelector('a');
+        const submenu = container.querySelector('.submenu');
+        const chevron = link.querySelector('.fa-chevron-down');
+        
+        if (link && submenu) {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Cerrar otros submenús
+                submenuContainers.forEach(otherContainer => {
+                    if (otherContainer !== container) {
+                        const otherSubmenu = otherContainer.querySelector('.submenu');
+                        const otherChevron = otherContainer.querySelector('.fa-chevron-down');
+                        const otherLink = otherContainer.querySelector('a');
+                        
+                        if (otherSubmenu && otherSubmenu.classList.contains('activo')) {
+                            otherSubmenu.classList.remove('activo');
+                            if (otherChevron) {
+                                otherChevron.style.transform = 'rotate(0deg)';
+                            }
+                            if (otherLink) {
+                                otherLink.setAttribute('aria-expanded', 'false');
+                            }
+                        }
+                    }
+                });
+                
+                // Toggle del submenú actual
+                submenu.classList.toggle('activo');
+                const isExpanded = submenu.classList.contains('activo');
+                
+                if (chevron) {
+                    chevron.style.transform = isExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
+                }
+                
+                link.setAttribute('aria-expanded', isExpanded.toString());
+            });
+        }
+    });
+    
+    // Cerrar menú móvil al hacer clic fuera
+    document.addEventListener('click', function(e) {
+        if (window.innerWidth <= 768) {
+            if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+                sidebar.classList.remove('active');
+                if (mainContent) {
+                    mainContent.classList.remove('with-sidebar');
+                }
+                
+                const icon = menuToggle.querySelector('i');
+                icon.classList.remove('fa-times');
+                icon.classList.add('fa-bars');
+                menuToggle.setAttribute('aria-label', 'Abrir menú de navegación');
+            }
+        }
+    });
+    
+    // Navegación por teclado
+    document.addEventListener('keydown', function(e) {
+        // Cerrar menú móvil con Escape
+        if (e.key === 'Escape' && sidebar.classList.contains('active')) {
+            sidebar.classList.remove('active');
+            if (mainContent) {
+                mainContent.classList.remove('with-sidebar');
+            }
+            menuToggle.focus();
+        }
+        
+        // Indicador visual para navegación por teclado
+        if (e.key === 'Tab') {
+            document.body.classList.add('keyboard-navigation');
+        }
+        
+        // ⭐ ATAJOS DE TECLADO COMO EN LA AYUDA
+        if (e.ctrlKey) {
+            switch(e.key) {
+                case 's':
+                    e.preventDefault();
+                    document.getElementById('btnRegistrar').click();
+                    break;
+                case 'r':
+                    e.preventDefault();
+                    limpiarFormulario();
+                    break;
+            }
+        }
+        
+        if (e.key === 'Escape' && !sidebar.classList.contains('active')) {
+            // Confirmar antes de salir
+            if (confirm('¿Desea cancelar el registro del producto?')) {
+                navegarRetorno();
+            }
+        }
+    });
+    
+    document.addEventListener('mousedown', function() {
+        document.body.classList.remove('keyboard-navigation');
+    });
+    
+    // ⭐ VALIDACIÓN DEL FORMULARIO
+    const form = document.getElementById('formRegistrarProducto');
+    const submitBtn = document.getElementById('btnRegistrar');
+    
+    if (form) {
+        const requiredInputs = form.querySelectorAll('input[required], select[required]');
+        
+        function validateForm() {
+            let isValid = true;
+            
+            requiredInputs.forEach(input => {
+                if (!input.value.trim()) {
+                    isValid = false;
+                    input.classList.add('error');
+                    input.closest('.form-group').classList.add('error');
+                } else {
+                    input.classList.remove('error');
+                    input.classList.add('success');
+                    input.closest('.form-group').classList.remove('error');
+                    input.closest('.form-group').classList.add('success');
+                }
+            });
+            
+            if (submitBtn) {
+                submitBtn.disabled = !isValid;
+                if (isValid) {
+                    submitBtn.classList.add('ready');
+                } else {
+                    submitBtn.classList.remove('ready');
+                }
+            }
+            
+            return isValid;
+        }
+        
+        // Validar en tiempo real
+        requiredInputs.forEach(input => {
+            input.addEventListener('blur', validateForm);
+            input.addEventListener('input', validateForm);
+        });
+        
+        // Validar al enviar
+        form.addEventListener('submit', function(e) {
+            if (!validateForm()) {
+                e.preventDefault();
+                mostrarNotificacion('Por favor, complete todos los campos obligatorios.', 'error');
+                
+                // Enfocar el primer campo con error
+                const firstError = form.querySelector('.error input, .error select');
+                if (firstError) {
+                    firstError.focus();
+                }
+            } else {
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
+                submitBtn.disabled = true;
+                submitBtn.classList.add('loading');
+            }
+        });
+        
+        // Validación inicial
+        setTimeout(validateForm, 100);
+    }
+    
+    // ⭐ CONTADOR DE CARACTERES PARA OBSERVACIONES
+    const observaciones = document.getElementById('observaciones');
+    const charCount = document.getElementById('charCount');
+    
+    if (observaciones && charCount) {
+        observaciones.addEventListener('input', function() {
+            const count = this.value.length;
+            charCount.textContent = count;
+            
+            if (count > 450) {
+                charCount.parentElement.classList.add('warning');
+            } else {
+                charCount.parentElement.classList.remove('warning');
+            }
+        });
+    }
+    
+    // Manejar navegación del navegador (botón atrás)
+    window.addEventListener('popstate', function(event) {
+        // Si el usuario presiona atrás, llevarlo al contexto correcto
+        if (event.state && event.state.almacen_id) {
+            navegarRetorno();
+        }
+    });
+});
+
+// ⭐ FUNCIÓN PARA AJUSTAR CANTIDAD
+function adjustQuantity(increment) {
+    const cantidadInput = document.getElementById('cantidad');
+    if (cantidadInput) {
+        let currentValue = parseInt(cantidadInput.value) || 1;
+        let newValue = currentValue + increment;
+        
+        if (newValue < 1) newValue = 1;
+        if (newValue > 99999) newValue = 99999;
+        
+        cantidadInput.value = newValue;
+        
+        // Trigger validation
+        cantidadInput.dispatchEvent(new Event('input'));
+    }
+}
+
+// ⭐ FUNCIÓN PARA LIMPIAR FORMULARIO
+function limpiarFormulario() {
+    if (confirm('¿Está seguro de que desea limpiar todos los campos del formulario?')) {
+        const form = document.getElementById('formRegistrarProducto');
+        if (form) {
+            form.reset();
+            
+            // Limpiar clases de validación
+            const inputs = form.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+                input.classList.remove('error', 'success', 'modified');
+                const formGroup = input.closest('.form-group');
+                if (formGroup) {
+                    formGroup.classList.remove('error', 'success');
+                }
+            });
+            
+            // Resetear contador de caracteres
+            const charCount = document.getElementById('charCount');
+            if (charCount) {
+                charCount.textContent = '0';
+                charCount.parentElement.classList.remove('warning');
+            }
+            
+            // Restaurar valores preseleccionados
+            if (ALMACEN_PRESELECCIONADO) {
+                const almacenSelect = document.getElementById('almacen_id');
+                if (almacenSelect) {
+                    almacenSelect.value = ALMACEN_PRESELECCIONADO;
+                }
+            }
+            
+            if (CATEGORIA_PRESELECCIONADA) {
+                const categoriaSelect = document.getElementById('categoria_id');
+                if (categoriaSelect) {
+                    categoriaSelect.value = CATEGORIA_PRESELECCIONADA;
+                }
+            }
+            
+            // Enfocar el primer campo
+            const primerCampo = form.querySelector('input[type="text"]');
+            if (primerCampo) {
+                primerCampo.focus();
+            }
+            
+            mostrarNotificacion('Formulario limpiado correctamente', 'info');
+        }
+    }
+}
+
+// ⭐ FUNCIÓN PARA MOSTRAR NOTIFICACIONES
+function mostrarNotificacion(mensaje, tipo = 'info', duracion = 5000) {
+    const container = document.getElementById('notificaciones-container');
+    if (!container) return;
+    
+    const notificacion = document.createElement('div');
+    notificacion.className = `notificacion ${tipo}`;
+    
+    const iconos = {
+        'exito': 'fas fa-check-circle',
+        'error': 'fas fa-exclamation-circle', 
+        'info': 'fas fa-info-circle',
+        'warning': 'fas fa-exclamation-triangle'
+    };
+    
+    notificacion.innerHTML = `
+        <i class="${iconos[tipo] || iconos['info']}"></i>
+        <span>${mensaje}</span>
+        <button class="cerrar" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    container.appendChild(notificacion);
+    
+    // Auto-remover después de la duración especificada
+    if (duracion > 0) {
+        setTimeout(() => {
+            if (notificacion.parentElement) {
+                notificacion.style.animation = 'slideOutRight 0.3s ease-in';
+                setTimeout(() => notificacion.remove(), 300);
+            }
+        }, duracion);
+    }
+}
+
+// ⭐ FUNCIÓN PARA CERRAR SESIÓN
+async function manejarCerrarSesion(event) {
+    event.preventDefault();
+    
+    if (confirm('¿Está seguro de que desea cerrar sesión?')) {
+        mostrarNotificacion('Cerrando sesión...', 'info', 2000);
+        
+        setTimeout(() => {
+            window.location.href = '../logout.php';
+        }, 1000);
+    }
+}
+
+// ⭐ MOSTRAR NOTIFICACIONES DE SESIÓN PHP
+<?php if (isset($_SESSION['success'])): ?>
+mostrarNotificacion('<?php echo $_SESSION['success']; ?>', 'exito');
+<?php unset($_SESSION['success']); ?>
+<?php endif; ?>
+
+<?php if (isset($_SESSION['error'])): ?>
+mostrarNotificacion('<?php echo $_SESSION['error']; ?>', 'error');
+<?php unset($_SESSION['error']); ?>
+<?php endif; ?>
+
+// Manejo de errores globales
+window.addEventListener('error', function(e) {
+    console.error('Error detectado:', e.error);
+    mostrarNotificacion('Se ha producido un error. Por favor, recarga la página.', 'error');
+});
+</script>
 </body>
 </html>
