@@ -16,7 +16,6 @@ $conn = new mysqli($host, $usuario, $contraseña, $base_datos);
 if ($conn->connect_error) {
     die("Error de conexión: " . $conn->connect_error);
 }
-
 // Establecer el conjunto de caracteres
 $conn->set_charset("utf8mb4");
 ?>
