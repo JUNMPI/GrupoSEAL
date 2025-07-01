@@ -891,6 +891,7 @@ function obtenerUrlRetornoAlmacen($almacen_id) {
     </div>
 </div>
 
+
 <!-- Modal de Entrega -->
 <div id="modalEntrega" class="modal-entrega">
     <div class="modal-entrega-content">
@@ -966,84 +967,10 @@ function obtenerUrlRetornoAlmacen($almacen_id) {
     </div>
 </div>
 
-<!-- Modal de Transferencia -->
-<div id="modalTransferencia" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>
-                <i class="fas fa-paper-plane"></i>
-                Transferir Producto
-            </h2>
-            <button class="modal-close" onclick="cerrarModal()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        
-        <form id="formTransferencia" method="POST" action="procesar_formulario.php">
-            <div class="modal-body">
-                <input type="hidden" id="producto_id" name="producto_id">
-                <input type="hidden" id="almacen_origen" name="almacen_origen">
-                
-                <div class="transfer-info">
-                    <div class="product-summary">
-                        <div class="product-icon">
-                            <i class="fas fa-box"></i>
-                        </div>
-                        <div class="product-details-modal">
-                            <h3 id="producto_nombre"></h3>
-                            <p>Stock disponible: <span id="stock_disponible" class="stock-highlight"></span></p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="cantidad" class="form-label">
-                        <i class="fas fa-sort-numeric-up"></i>
-                        Cantidad a transferir
-                    </label>
-                    <div class="quantity-input">
-                        <button type="button" class="qty-btn minus" onclick="adjustQuantity(-1)">
-                            <i class="fas fa-minus"></i>
-                        </button>
-                        <input type="number" id="cantidad" name="cantidad" min="1" value="1" class="qty-input">
-                        <button type="button" class="qty-btn plus" onclick="adjustQuantity(1)">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="almacen_destino" class="form-label">
-                        <i class="fas fa-warehouse"></i>
-                        Almacén de destino
-                    </label>
-                    <select id="almacen_destino" name="almacen_destino" required class="form-select">
-                        <option value="">Seleccione un almacén</option>
-                        <?php foreach ($almacenes_disponibles as $almacen): ?>
-                            <option value="<?php echo $almacen['id']; ?>">
-                                <?php echo htmlspecialchars($almacen['nombre']); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="modal-footer">
-                <button type="button" class="btn-modal btn-cancel" onclick="cerrarModal()">
-                    <i class="fas fa-times"></i>
-                    Cancelar
-                </button>
-                <button type="submit" class="btn-modal btn-confirm">
-                    <i class="fas fa-paper-plane"></i>
-                    Transferir Producto
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
 
 <!-- Container para notificaciones -->
 <div id="notificaciones-container"></div>
+
 
 <script>
 // Variables globales para el contexto
