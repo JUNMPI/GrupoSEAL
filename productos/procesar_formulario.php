@@ -491,5 +491,6 @@ function manejarEntregaPersonal($conn, $usuario_id, $data) {
         error_log("Error en entrega personal: " . $e->getMessage());
         enviarRespuesta(false, $e->getMessage());
     }
+    
 }
 ?>
