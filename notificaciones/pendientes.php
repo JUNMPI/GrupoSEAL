@@ -13,6 +13,7 @@ if (!isset($_SESSION["user_role"]) || !isset($_SESSION["almacen_id"])) {
     $_SESSION['error'] = "Información de usuario incompleta. Por favor inicie sesión nuevamente.";
     header("Location: ../views/login_form.php");
     exit();
+    
 }
 
 // Obtener el almacén y rol del usuario actual
