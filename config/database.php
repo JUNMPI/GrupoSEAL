@@ -1,9 +1,9 @@
 <?php
 $host = "localhost";
-$usuario = "u797525844_comseproa_db"; // Cambia si usas otro usuario
-$contraseña = "2x6as#=RI[Q";  // Cambia si tu MySQL tiene contraseña
+$usuario = "root"; // Cambia si usas otro usuario
+$contraseña = "";  // Cambia si tu MySQL tiene contraseña
 
-$base_datos = "u797525844_comseproa_db";
+$base_datos = "comseproa_db";
 
 
 //$base_datos = "comseproa_db";
