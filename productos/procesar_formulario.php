@@ -402,6 +402,29 @@ function manejarEntregaPersonal($conn, $usuario_id, $data) {
             throw new Exception('No se procesó ningún producto válido');
         }
         
+        // Registrar en tabla de movimientos (usando tabla existente)
+        foreach ($productos_procesados as $prod) {
+            $sql_movimiento = "INSERT INTO movimientos (producto_id, cantidad, tipo, descripcion, usuario_id, fecha_movimiento)
+                              VALUES (?, ?, 'entrega_personal', ?, ?, NOW())";
+            $stmt_mov = $conn->prepare($sql_movimiento);
+            $descripcion = "Entrega a {$destinatario_nombre} (DNI: {$destinatario_dni}) - Código: {$codigo_entrega}";
+            $stmt_mov->bind_param("iiss", $prod['id'], $prod['cantidad'], $descripcion, $usuario_id);
+            $stmt_mov->execute();
+            $stmt_mov->close();
+        }
+        
+        // Confirmar transacción
+        $conn->commit();
+        
+        // Respuesta exitosa
+        enviarRespuesta(true, 'Entrega registrada exitosamente', [
+            'codigo_entrega' => $codigo_entrega,
+            'destinatario' => $destinatario_nombre,
+            'dni' => $destinatario_dni,
+            'productos_entregados' => count($productos_procesados),
+            'total_unidades' => $total_unidades,
+            'fecha_entrega' => date('Y-m-d H:i:s')
+        ]);
         
     } catch (Exception $e) {
         // Rollback en caso de error
