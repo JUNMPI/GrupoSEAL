@@ -309,8 +309,11 @@ try {
     }
 }
 
-// Función para manejar entregas a personal
+
+// ===== FUNCIÓN PARA MANEJAR ENTREGAS A PERSONAL =====
 function manejarEntregaPersonal($conn, $usuario_id, $data) {
+    global $is_ajax;
+    
     try {
         // Validar datos requeridos
         if (empty($data['destinatario_nombre']) || empty($data['destinatario_dni']) || empty($data['productos'])) {
@@ -337,22 +340,12 @@ function manejarEntregaPersonal($conn, $usuario_id, $data) {
         // Iniciar transacción
         $conn->begin_transaction();
         
-        // Obtener almacén del usuario
-        $sql_usuario = "SELECT almacen_id FROM usuarios WHERE id = ?";
-        $stmt_usuario = $conn->prepare($sql_usuario);
-        $stmt_usuario->bind_param("i", $usuario_id);
-        $stmt_usuario->execute();
-        $usuario_info = $stmt_usuario->get_result()->fetch_assoc();
-        $stmt_usuario->close();
-        
-        if (!$usuario_info || !$usuario_info['almacen_id']) {
-            throw new Exception('Usuario no tiene almacén asignado');
-        }
-        
-        $almacen_usuario = $usuario_info['almacen_id'];
+        // Generar código de entrega único
+        $codigo_entrega = 'ENT-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
         
         $productos_procesados = [];
         $total_unidades = 0;
+        $usuario_name = $_SESSION["user_name"] ?? "Usuario";
         
         // Procesar cada producto
         foreach ($productos as $producto) {
@@ -368,19 +361,16 @@ function manejarEntregaPersonal($conn, $usuario_id, $data) {
                             FROM productos p 
                             JOIN almacenes a ON p.almacen_id = a.id 
                             JOIN categorias c ON p.categoria_id = c.id 
-                            WHERE p.id = ? AND p.almacen_id = ? FOR UPDATE";
+                            WHERE p.id = ?";
             $stmt_producto = $conn->prepare($sql_producto);
-            $stmt_producto->bind_param("ii", $producto_id, $almacen_usuario);
+            $stmt_producto->bind_param("i", $producto_id);
             $stmt_producto->execute();
-            $result_producto = $stmt_producto->get_result();
-            
-            if ($result_producto->num_rows === 0) {
-                $stmt_producto->close();
-                throw new Exception("Producto con ID $producto_id no encontrado en su almacén");
-            }
-            
-            $producto_info = $result_producto->fetch_assoc();
+            $producto_info = $stmt_producto->get_result()->fetch_assoc();
             $stmt_producto->close();
+            
+            if (!$producto_info) {
+                throw new Exception("Producto con ID $producto_id no encontrado");
+            }
             
             // Verificar stock disponible
             if ($producto_info['cantidad'] < $cantidad_solicitada) {
@@ -398,41 +388,6 @@ function manejarEntregaPersonal($conn, $usuario_id, $data) {
             }
             $stmt_update->close();
             
-            // Registrar entrega en tabla entrega_uniformes
-            $sql_entrega = "INSERT INTO entrega_uniformes 
-                           (usuario_responsable_id, nombre_destinatario, dni_destinatario, producto_id, cantidad, almacen_id, fecha_entrega) 
-                           VALUES (?, ?, ?, ?, ?, ?, NOW())";
-            $stmt_entrega = $conn->prepare($sql_entrega);
-            $stmt_entrega->bind_param("issiii", 
-                $usuario_id, 
-                $destinatario_nombre, 
-                $destinatario_dni, 
-                $producto_id, 
-                $cantidad_solicitada, 
-                $almacen_usuario
-            );
-            
-            if (!$stmt_entrega->execute()) {
-                throw new Exception("Error al registrar entrega del producto {$producto_info['nombre']}");
-            }
-            $stmt_entrega->close();
-            
-            // Registrar movimiento de salida
-            $sql_movimiento = "INSERT INTO movimientos 
-                              (producto_id, almacen_origen, cantidad, tipo, fecha, usuario_id, estado, descripcion) 
-                              VALUES (?, ?, ?, 'salida', NOW(), ?, 'completado', ?)";
-            $stmt_mov = $conn->prepare($sql_movimiento);
-            $descripcion = "Entrega a {$destinatario_nombre} (DNI: {$destinatario_dni})";
-            $stmt_mov->bind_param("iiiis", 
-                $producto_id, 
-                $almacen_usuario, 
-                $cantidad_solicitada, 
-                $usuario_id, 
-                $descripcion
-            );
-            $stmt_mov->execute();
-            $stmt_mov->close();
-            
             $productos_procesados[] = [
                 'id' => $producto_id,
                 'nombre' => $producto_info['nombre'],
@@ -447,43 +402,6 @@ function manejarEntregaPersonal($conn, $usuario_id, $data) {
             throw new Exception('No se procesó ningún producto válido');
         }
         
-        // Registrar en logs de actividad si existe la tabla
-        try {
-            $check_logs = $conn->query("SHOW TABLES LIKE 'logs_actividad'");
-            if ($check_logs && $check_logs->num_rows > 0) {
-                $sql_log = "INSERT INTO logs_actividad (usuario_id, accion, detalle, fecha_accion) 
-                            VALUES (?, 'ENTREGA_PRODUCTOS', ?, NOW())";
-                $stmt_log = $conn->prepare($sql_log);
-                
-                // Crear lista de productos para el detalle
-                $productos_nombres = array_slice(array_map(function($p) { return $p['nombre']; }, $productos_procesados), 0, 3);
-                $productos_texto = implode(', ', $productos_nombres);
-                if (count($productos_procesados) > 3) {
-                    $productos_texto .= '...';
-                }
-                
-                $detalle = "Entregó " . count($productos_procesados) . " tipo(s) de productos ({$total_unidades} unidades total) a {$destinatario_nombre} (DNI: {$destinatario_dni}). Productos: {$productos_texto}";
-                $stmt_log->bind_param("is", $usuario_id, $detalle);
-                $stmt_log->execute();
-                $stmt_log->close();
-            }
-        } catch (Exception $e) {
-            // No es crítico si falla el log
-            error_log("Error al registrar log de actividad (no crítico): " . $e->getMessage());
-        }
-        
-        // Confirmar transacción
-        $conn->commit();
-        
-        // Respuesta exitosa
-        enviarRespuesta(true, 'Entrega registrada exitosamente', [
-            'destinatario' => $destinatario_nombre,
-            'dni' => $destinatario_dni,
-            'productos_entregados' => count($productos_procesados),
-            'total_unidades' => $total_unidades,
-            'fecha_entrega' => date('Y-m-d H:i:s'),
-            'productos' => $productos_procesados
-        ]);
         
     } catch (Exception $e) {
         // Rollback en caso de error
@@ -491,6 +409,5 @@ function manejarEntregaPersonal($conn, $usuario_id, $data) {
         error_log("Error en entrega personal: " . $e->getMessage());
         enviarRespuesta(false, $e->getMessage());
     }
-    
 }
 ?>
